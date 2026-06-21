@@ -831,10 +831,13 @@ function drawFrameSkeletons(canvasElement, hands) {
             ctx.shadowBlur = 15;
             ctx.shadowColor = glow;
             ctx.lineWidth = h.state === "CLOSED" ? 6 : 2;
-            ctx.fillStyle = h.state === "CLOSED" ? "rgba(255,255,255,0.08)" : "transparent";
             
+            // Draw filled cursor (always visible, darker when hand is CLOSED)
             if (h.state === "OPEN") {
                 ctx.setLineDash([4, 4]);
+                ctx.fillStyle = side === "left" ? "rgba(255, 107, 107, 0.08)" : "rgba(19, 194, 194, 0.08)";
+            } else {
+                ctx.fillStyle = side === "left" ? "rgba(255, 107, 107, 0.35)" : "rgba(19, 194, 194, 0.35)";
             }
             
             ctx.fill();

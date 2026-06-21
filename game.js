@@ -439,13 +439,14 @@ function drawPlayerCursors() {
             gameCtx.strokeStyle = color;
             gameCtx.lineWidth = hand.state === "CLOSED" ? 5 : 2;
             
-            // Dashed outline if hand open, solid if hand closed/grabbing
+            // Draw filled cursor (always visible, darker when hand is CLOSED)
             if (hand.state === "OPEN") {
                 gameCtx.setLineDash([4, 4]);
+                gameCtx.fillStyle = side === "left" ? "rgba(255, 107, 107, 0.08)" : "rgba(19, 194, 194, 0.08)";
             } else {
-                gameCtx.fillStyle = "rgba(255,255,255,0.06)";
-                gameCtx.fill();
+                gameCtx.fillStyle = side === "left" ? "rgba(255, 107, 107, 0.35)" : "rgba(19, 194, 194, 0.35)";
             }
+            gameCtx.fill();
             
             gameCtx.stroke();
             

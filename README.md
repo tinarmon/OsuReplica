@@ -81,3 +81,4 @@ This project implements an incremental branch-tracking strategy:
 *   **Development Branches (`Lobby[Number]`)**: Every batch of features, updates, or modifications is pushed to a branch named `Lobby[Number]` (where `[Number]` increments with each update, e.g., `Lobby1`, `Lobby2`, `Lobby3`...). Once a Lobby branch is verified stable, its changes are merged or pushed into `main`.
 *   **`Lobby1`**: Initial release featuring index layout, style configurations, beatmaps, and core game logic.
 *   **`Lobby2`**: Included Git/Repository updates, implementation plan updates, and the creation of this project documentation (`README.md`).
+*   **`Lobby3`**: Visual cursor enhancement. Replaced the empty/hollow open hand cursor with a shallow tinted circle that always appears when the hand is on screen (with Coral and Cyan themes), and shifts to a darker, more solid opacity when a closed hand gesture is executed.
