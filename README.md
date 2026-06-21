@@ -74,11 +74,10 @@ At the end of a session, a post-session summary compares usage ratios and reacti
 3.  Double-click **`index.html`** to open it directly in a web browser.
 4.  No installation or development servers are required!
 
----
-
-## 🌿 Branching Convention (`Lobby[Number]`)
+## 🌿 Branching Convention (`Lobby[Number]` & `main`)
 
 This project implements an incremental branch-tracking strategy:
-*   Every batch of features, updates, or modifications is pushed to a branch named **`Lobby[Number]`** (where `[Number]` increments with each update, e.g., `Lobby1`, `Lobby2`, `Lobby3`...).
+*   **Stable Production Branch (`main`)**: The source of truth for stable, fully tested, and verified code releases.
+*   **Development Branches (`Lobby[Number]`)**: Every batch of features, updates, or modifications is pushed to a branch named `Lobby[Number]` (where `[Number]` increments with each update, e.g., `Lobby1`, `Lobby2`, `Lobby3`...). Once a Lobby branch is verified stable, its changes are merged or pushed into `main`.
 *   **`Lobby1`**: Initial release featuring index layout, style configurations, beatmaps, and core game logic.
 *   **`Lobby2`**: Included Git/Repository updates, implementation plan updates, and the creation of this project documentation (`README.md`).
