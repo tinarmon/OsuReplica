@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robo-Osu Rehab - Upper Limb Rhythm Therapy</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- MediaPipe CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fa-solid fa-circle-nodes logo-icon"></i>
+                    <span>ROBO-OSU <span class="accent-text">REHAB</span></span>
+                </div>
+            </div>
+            
+            <!-- User Role Switcher -->
+            <div class="role-selector">
+                <span class="role-label">Role:</span>
+                <div class="toggle-container">
+                    <button id="role-patient-btn" class="role-btn active" onclick="switchRole('patient')">
+                        <i class="fa-solid fa-user"></i> Patient
+                    </button>
+                    <button id="role-therapist-btn" class="role-btn" onclick="switchRole('therapist')">
+                        <i class="fa-solid fa-user-doctor"></i> Therapist
+                    </button>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="home" onclick="showTab('home')">
+                    <i class="fa-solid fa-house"></i> <span>Home</span>
+                </button>
+                <button class="nav-item" data-tab="calibration" onclick="showTab('calibration')">
+                    <i class="fa-solid fa-sliders"></i> <span>Calibration</span>
+                </button>
+                <button class="nav-item" data-tab="gameplay" onclick="showTab('gameplay')">
+                    <i class="fa-solid fa-gamepad"></i> <span>Play Game</span>
+                </button>
+                <button class="nav-item therapist-only hidden" data-tab="dashboard" onclick="showTab('dashboard')">
+                    <i class="fa-solid fa-chart-line"></i> <span>Therapist Hub</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar"><i class="fa-solid fa-circle-user"></i></div>
+                    <div class="user-info">
+                        <span id="active-profile-name" class="username">Patient A</span>
+                        <span id="active-profile-desc" class="user-desc">Left Hand Affected</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- TAB: HOME -->
+            <section id="tab-home" class="tab-content active">
+                <header class="content-header">
+                    <h1>Welcome Back, <span id="welcome-name">Patient A</span></h1>
+                    <p class="subtitle">Ready for today's upper limb rehabilitation routine?</p>
+                </header>
+
+                <div class="dashboard-grid">
+                    <!-- CTA Card -->
+                    <div class="glass-card cta-card highlight-card">
+                        <div class="card-body">
+                            <h2>Start Daily Session</h2>
+                            <p>Train your hands, track natural coordination, and build upper limb endurance through rhythm gameplay.</p>
+                            <button class="btn btn-primary btn-large" onclick="showTab('calibration')">
+                                <i class="fa-solid fa-play"></i> Start Setup
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mini Stats Card -->
+                    <div class="glass-card stat-card">
+                        <div class="card-header">
+                            <h3>Last Session Metrics</h3>
+                            <span class="date-badge" id="last-session-date">Yesterday</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="progress-container-split">
+                                <div class="side-stat left-side">
+                                    <span class="side-label">LEFT HAND (CORAL)</span>
+                                    <div class="stat-value" id="home-left-hits">29 <span class="small-text">hits</span></div>
+                                    <div class="stat-meta">RT: <span id="home-left-rt">498</span> ms</div>
+                                </div>
+                                <div class="side-stat right-side">
+                                    <span class="side-label">RIGHT HAND (CYAN)</span>
+                                    <div class="stat-value" id="home-right-hits">60 <span class="small-text">hits</span></div>
+                                    <div class="stat-meta">RT: <span id="home-right-rt">312</span> ms</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Custom HTML Bar Chart for Usage -->
+                            <div class="usage-chart-container">
+                                <div class="usage-bar-labels">
+                                    <span>Left Ratio: <span id="home-left-ratio">32.6%</span></span>
+                                    <span>Right Ratio: <span id="home-right-ratio">67.4%</span></span>
+                                </div>
+                                <div class="usage-progress-bar">
+                                    <div id="home-left-bar" class="left-bar-fill" style="width: 32.6%;"></div>
+                                    <div id="home-right-bar" class="right-bar-fill" style="width: 67.4%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="alert-box-summary" id="home-alert-box">
+                                <i class="fa-solid fa-triangle-exclamation warning-icon"></i>
+                                <div>
+                                    <strong>Compensation Detected:</strong> Dominance Gap is <span id="home-dominance-gap">34.8%</span>. You are heavily favoring your right hand.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-sessions-container glass-card">
+                    <div class="card-header">
+                        <h3>Session History</h3>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Song Name</th>
+                                    <th>Difficulty</th>
+                                    <th>Left Hits</th>
+                                    <th>Right Hits</th>
+                                    <th>Dominance Gap</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="home-history-table-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: CALIBRATION -->
+            <section id="tab-calibration" class="tab-content">
+                <header class="content-header">
+                    <h1>Camera & Hand Calibration</h1>
+                    <p class="subtitle">Prepare your camera feed and ensure both hands are detected clearly in the frame.</p>
+                </header>
+
+                <div class="calibration-layout">
+                    <div class="webcam-pane glass-card">
+                        <!-- Video feed overlay element -->
+                        <div class="video-container">
+                            <video id="calibration-video" class="hidden-video" width="640" height="480" autoplay playsinline></video>
+                            <canvas id="calibration-canvas" width="640" height="480"></canvas>
+                            <div class="loading-overlay" id="mediapipe-loading">
+                                <div class="spinner"></div>
+                                <p>Loading MediaPipe Hand Tracker...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-pane glass-card">
+                        <h3>Setup Checklist</h3>
+                        <ul class="checklist">
+                            <li id="chk-webcam"><i class="fa-regular fa-circle"></i> Web Camera Access</li>
+                            <li id="chk-hands-dll"><i class="fa-regular fa-circle"></i> MediaPipe Loaded</li>
+                            <li id="chk-left-hand"><i class="fa-regular fa-circle"></i> Detect Left Hand (Coral)</li>
+                            <li id="chk-right-hand"><i class="fa-regular fa-circle"></i> Detect Right Hand (Cyan)</li>
+                        </ul>
+
+                        <div class="calibration-tips">
+                            <h4><i class="fa-solid fa-lightbulb"></i> Pro Tips</h4>
+                            <ul>
+                                <li>Make sure your face and upper torso are well-lit.</li>
+                                <li>Stand/sit 1-1.5 meters away from the camera.</li>
+                                <li>Keep both hands visible inside the video box.</li>
+                            </ul>
+                        </div>
+
+                        <div class="calibration-actions">
+                            <button id="toggle-camera-btn" class="btn btn-secondary" onclick="toggleCamera()">
+                                <i class="fa-solid fa-video"></i> Start Webcam
+                            </button>
+                            <button id="proceed-to-game-btn" class="btn btn-primary" onclick="proceedToGame()" disabled>
+                                Proceed to Game <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: GAMEPLAY -->
+            <section id="tab-gameplay" class="tab-content">
+                <!-- SETUP VIEW -->
+                <div id="game-setup-panel" class="game-view-panel">
+                    <header class="content-header">
+                        <h1>Rehab Game Room</h1>
+                        <p class="subtitle">Configure your rhythm track and select your training difficulty.</p>
+                    </header>
+
+                    <div class="game-setup-grid">
+                        <div class="glass-card selection-card">
+                            <h3>1. Select Beatmap</h3>
+                            <div class="beatmap-list" id="beatmap-list-container">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <div class="glass-card selection-card">
+                            <h3>2. Choose Difficulty</h3>
+                            <div class="difficulty-selector">
+                                <label class="diff-option">
+                                    <input type="radio" name="difficulty" value="1" checked>
+                                    <div class="diff-card easy">
+                                        <div class="diff-title">Easy</div>
+                                        <p>Slow speed. Large hit circles. Ideal for starting muscle recovery.</p>
+                                    </div>
+                                </label>
+                                <label class="diff-option">
+                                    <input type="radio" name="difficulty" value="2">
+                                    <div class="diff-card medium">
+                                        <div class="diff-title">Medium</div>
+                                        <p>Moderate speed. Standard circles. Requires steady coordination.</p>
+                                    </div>
+                                </label>
+                                <label class="diff-option">
+                                    <input type="radio" name="difficulty" value="3">
+                                    <div class="diff-card hard">
+                                        <div class="diff-title">Hard</div>
+                                        <p>Fast speed. Smaller circles. Builds muscle stamina and quick responses.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-footer">
+                        <button class="btn btn-secondary btn-large" onclick="showTab('calibration')">
+                            <i class="fa-solid fa-chevron-left"></i> Calibration
+                        </button>
+                        
+                        <!-- Track Input Device Toggle -->
+                        <div class="device-toggle-wrapper">
+                            <span>Input Mode:</span>
+                            <div class="toggle-container">
+                                <button id="input-mp-btn" class="role-btn active" onclick="switchInputMode('mediapipe')">
+                                    <i class="fa-solid fa-camera"></i> Webcam Track
+                                </button>
+                                <button id="input-mouse-btn" class="role-btn" onclick="switchInputMode('mouse')">
+                                    <i class="fa-solid fa-mouse"></i> Mouse Simulation
+                                </button>
+                            </div>
+                        </div>
+
+                        <button id="start-gameplay-btn" class="btn btn-primary btn-large" onclick="startGame()">
+                            Launch Game <i class="fa-solid fa-gamepad"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- GAMEPLAY ACTIVE VIEW -->
+                <div id="game-active-panel" class="game-view-panel hidden">
+                    <div class="game-header-hud">
+                        <div class="hud-item combo-hud">
+                            <span class="hud-label">COMBO</span>
+                            <span id="hud-combo-val" class="hud-value font-display">0</span>
+                        </div>
+                        <div class="hud-item progress-hud">
+                            <span class="hud-label">TIME</span>
+                            <span id="hud-time-val" class="hud-value font-display">00:00</span>
+                        </div>
+                        <div class="hud-item score-hud">
+                            <span class="hud-label">SCORE</span>
+                            <span id="hud-score-val" class="hud-value font-display">00000</span>
+                        </div>
+                        <button class="btn btn-hud-pause" onclick="pauseGame()">
+                            <i class="fa-solid fa-pause"></i> Pause
+                        </button>
+                    </div>
+
+                    <div class="game-canvas-container">
+                        <!-- Mirror game canvas & webcam feed in gameplay -->
+                        <video id="game-video" class="hidden-video" width="800" height="500" autoplay playsinline></video>
+                        <canvas id="game-canvas" width="800" height="500"></canvas>
+                        
+                        <!-- Mouse Simulation Controls instructions overlay -->
+                        <div id="mouse-sim-overlay" class="mouse-sim-instructions hidden">
+                            <p><i class="fa-solid fa-circle-info"></i> <strong>Mouse Simulation Active:</strong> Move the mouse to steer the hands. Use keys to Grab/Click: <span class="kbd">A</span> key = Left hand Grab, <span class="kbd">S</span> key = Right hand Grab.</p>
+                        </div>
+                    </div>
+
+                    <div class="game-footer-hud">
+                        <div class="hand-hud-counter left-hand-theme">
+                            <span class="indicator-dot left"></span>
+                            <span>Left Hand Hits: <strong id="hud-left-hits">0</strong></span>
+                        </div>
+                        <div class="hand-hud-counter right-hand-theme">
+                            <span class="indicator-dot right"></span>
+                            <span>Right Hand Hits: <strong id="hud-right-hits">0</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: POST-SESSION SUMMARY -->
+            <section id="tab-summary" class="tab-content">
+                <header class="content-header text-center">
+                    <div class="success-icon-banner">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <h1>Session Completed!</h1>
+                    <p class="subtitle" id="summary-session-info">Patient A | Today</p>
+                </header>
+
+                <div class="summary-dashboard">
+                    <div class="summary-mirror-grid">
+                        <!-- Left hand details -->
+                        <div class="glass-card side-summary-card left-hand-card">
+                            <div class="card-accent-bar left"></div>
+                            <h3>Left Hand (Coral)</h3>
+                            <div class="summary-stat-group">
+                                <div class="sub-stat">
+                                    <span class="label">SUCCESS HITS</span>
+                                    <span class="val font-display" id="summary-left-hits">0</span>
+                                </div>
+                                <div class="sub-stat">
+                                    <span class="label">USAGE RATIO</span>
+                                    <span class="val font-display" id="summary-left-ratio">0.0%</span>
+                                </div>
+                                <div class="sub-stat">
+                                    <span class="label">AVG REACTION</span>
+                                    <span class="val font-display"><span id="summary-left-rt">0</span> <span class="ms-unit">ms</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right hand details -->
+                        <div class="glass-card side-summary-card right-hand-card">
+                            <div class="card-accent-bar right"></div>
+                            <h3>Right Hand (Cyan)</h3>
+                            <div class="summary-stat-group">
+                                <div class="sub-stat">
+                                    <span class="label">SUCCESS HITS</span>
+                                    <span class="val font-display" id="summary-right-hits">0</span>
+                                </div>
+                                <div class="sub-stat">
+                                    <span class="label">USAGE RATIO</span>
+                                    <span class="val font-display" id="summary-right-ratio">0.0%</span>
+                                </div>
+                                <div class="sub-stat">
+                                    <span class="label">AVG REACTION</span>
+                                    <span class="val font-display"><span id="summary-right-rt">0</span> <span class="ms-unit">ms</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shared statistics -->
+                    <div class="glass-card summary-analysis-card">
+                        <h3>Natural Coordination Assessment</h3>
+                        
+                        <div class="double-progress-bar-wrapper">
+                            <div class="progress-bar-headers">
+                                <span>Left Hand Usage</span>
+                                <span>Right Hand Usage</span>
+                            </div>
+                            <div class="usage-progress-bar large">
+                                <div id="summary-left-bar" class="left-bar-fill" style="width: 50%;"></div>
+                                <div id="summary-right-bar" class="right-bar-fill" style="width: 50%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="analysis-stats-row">
+                            <div class="single-stat">
+                                <span class="label">Total Notes in Chart</span>
+                                <span class="val" id="summary-total-notes">0</span>
+                            </div>
+                            <div class="single-stat">
+                                <span class="label">Missed Notes</span>
+                                <span class="val" id="summary-misses">0</span>
+                            </div>
+                            <div class="single-stat">
+                                <span class="label">Dominance Gap</span>
+                                <span class="val highlight" id="summary-dominance-gap">0%</span>
+                            </div>
+                            <div class="single-stat">
+                                <span class="label">Slider Finish Rate</span>
+                                <span class="val" id="summary-slider-rate">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="alert-box-summary critical-alert hidden" id="summary-alert-critical">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <div>
+                                <h4>Compensation Behavior Flagged</h4>
+                                <p>Your Dominance Gap is <span id="summary-gap-alert-val">0.0%</span>. You are heavily leaning on your dominant hand. Consider slowing down the song speed so your affected side has more response time.</p>
+                            </div>
+                        </div>
+
+                        <div class="alert-box-summary success-alert" id="summary-alert-success">
+                            <i class="fa-solid fa-heart-pulse"></i>
+                            <div>
+                                <h4>Excellent Symmetry!</h4>
+                                <p>Your Dominance Gap is below 30% (<span id="summary-gap-success-val">0.0%</span>). Keep up this balanced usage to promote symmetrical neural and muscular recovery.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-footer justify-center">
+                    <button class="btn btn-secondary btn-large" onclick="restartSession()">
+                        <i class="fa-solid fa-rotate-left"></i> Play Again
+                    </button>
+                    <button id="summary-view-dashboard-btn" class="btn btn-secondary btn-large therapist-only hidden" onclick="showTab('dashboard')">
+                        <i class="fa-solid fa-chart-line"></i> Therapist Hub
+                    </button>
+                    <button class="btn btn-primary btn-large" onclick="showTab('home')">
+                        <i class="fa-solid fa-house"></i> Home Screen
+                    </button>
+                </div>
+            </section>
+
+            <!-- TAB: THERAPIST DASHBOARD -->
+            <section id="tab-dashboard" class="tab-content">
+                <header class="content-header flex-header">
+                    <div>
+                        <h1>Therapist Analytics Dashboard</h1>
+                        <p class="subtitle">Analyze patients' bilateral motion recovery and natural usage behavior.</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="exportData()"><i class="fa-solid fa-file-export"></i> Export Report</button>
+                    </div>
+                </header>
+
+                <div class="dashboard-metrics-summary">
+                    <div class="glass-card dash-metric">
+                        <span class="label">ACTIVE PATIENTS</span>
+                        <span class="val">3</span>
+                    </div>
+                    <div class="glass-card dash-metric alert-metric">
+                        <span class="label">COMPENSATION DETECTED</span>
+                        <span class="val">2</span>
+                    </div>
+                    <div class="glass-card dash-metric">
+                        <span class="label">SESSIONS THIS WEEK</span>
+                        <span class="val" id="dash-sessions-count">12</span>
+                    </div>
+                </div>
+
+                <!-- Patient Profile Details Section -->
+                <div class="patient-grid">
+                    <!-- Selector -->
+                    <div class="glass-card patient-selector-card">
+                        <h3>Patients list</h3>
+                        <div class="patient-list" id="dashboard-patient-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Details of Selected Patient -->
+                    <div class="glass-card patient-details-card" id="patient-details-panel">
+                        <div class="patient-details-header">
+                            <div>
+                                <h2 id="det-patient-name">Patient Name</h2>
+                                <span class="badge" id="det-affected-side">Left Hand Affected</span>
+                            </div>
+                            <div class="trend-direction" id="det-dominance-status">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Heavy Compensation
+                            </div>
+                        </div>
+
+                        <div class="clinical-note-card">
+                            <h4>Bilateral Movement Analysis</h4>
+                            <p id="det-clinical-notes">The patient favors the right hand for middle-lane and left-lane targets, suggesting avoidance of left limb flexion. Lower difficulty maps are recommended to increase left-hand engagement.</p>
+                        </div>
+
+                        <!-- Graphical Analysis Representation -->
+                        <div class="chart-box">
+                            <h4>Session Symmetry Progress (Last 5 Sessions)</h4>
+                            <div class="custom-progress-trend" id="det-trend-lines">
+                                <!-- Render custom bars or lines here dynamically using canvas or style bars -->
+                                <div class="trend-canvas-wrapper">
+                                    <canvas id="trend-canvas" width="500" height="150"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="history-table-section">
+                            <h4>Recent Sessions</h4>
+                            <div class="table-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Song</th>
+                                            <th>Symmetry Ratio</th>
+                                            <th>Reaction Time (L/R)</th>
+                                            <th>Gap</th>
+                                            <th>Flag</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="det-sessions-table-body">
+                                        <!-- Dynamically generated rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Sound Player element references -->
+    <audio id="audio-click" preload="auto"></audio>
+    
+    <!-- Load JS assets sequentially -->
+    <script src="beatmaps.js"></script>
+    <script src="handtracker.js"></script>
+    <script src="game.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
