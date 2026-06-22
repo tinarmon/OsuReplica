@@ -226,26 +226,68 @@
                             <h3>2. Choose Difficulty</h3>
                             <div class="difficulty-selector">
                                 <label class="diff-option">
-                                    <input type="radio" name="difficulty" value="1" checked>
+                                    <input type="radio" name="difficulty" value="0" onchange="toggleCustomDifficultyPanel(false)">
+                                    <div class="diff-card easy" style="border-color: rgba(82, 196, 26, 0.4);">
+                                        <div class="diff-title" style="color: var(--success);">Very Easy</div>
+                                        <p>Extra slow speed. Extra large circles. Ideal for early-stage rehab.</p>
+                                    </div>
+                                </label>
+                                <label class="diff-option">
+                                    <input type="radio" name="difficulty" value="1" checked onchange="toggleCustomDifficultyPanel(false)">
                                     <div class="diff-card easy">
                                         <div class="diff-title">Easy</div>
                                         <p>Slow speed. Large hit circles. Ideal for starting muscle recovery.</p>
                                     </div>
                                 </label>
                                 <label class="diff-option">
-                                    <input type="radio" name="difficulty" value="2">
+                                    <input type="radio" name="difficulty" value="2" onchange="toggleCustomDifficultyPanel(false)">
                                     <div class="diff-card medium">
                                         <div class="diff-title">Medium</div>
                                         <p>Moderate speed. Standard circles. Requires steady coordination.</p>
                                     </div>
                                 </label>
                                 <label class="diff-option">
-                                    <input type="radio" name="difficulty" value="3">
+                                    <input type="radio" name="difficulty" value="3" onchange="toggleCustomDifficultyPanel(false)">
                                     <div class="diff-card hard">
                                         <div class="diff-title">Hard</div>
                                         <p>Fast speed. Smaller circles. Builds muscle stamina and quick responses.</p>
                                     </div>
                                 </label>
+                                <label class="diff-option">
+                                    <input type="radio" name="difficulty" value="4" onchange="toggleCustomDifficultyPanel(true)">
+                                    <div class="diff-card custom-diff" style="border-color: rgba(122, 92, 255, 0.4);">
+                                        <div class="diff-title" style="color: var(--accent);">Flexible (Custom)</div>
+                                        <p>Fully adjustable parameters. Tailor total notes, speed, and hit leeway.</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Custom Difficulty Sliders -->
+                            <div id="custom-difficulty-panel" class="hidden" style="margin-top: 16px; padding: 16px; background: rgba(122, 92, 255, 0.05); border: 1px solid rgba(122, 92, 255, 0.15); border-radius: 8px;">
+                                <h4 style="color: var(--accent); margin-bottom: 12px; font-size: 0.95rem;"><i class="fa-solid fa-sliders"></i> Adjust Custom Parameters</h4>
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    <div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                                            <span>Total Notes</span>
+                                            <span id="lbl-custom-notes">30 notes</span>
+                                        </div>
+                                        <input type="range" id="slider-custom-notes" min="10" max="100" value="30" step="5" style="width: 100%; accent-color: var(--accent);" oninput="updateCustomDifficultySliders()">
+                                    </div>
+                                    <div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                                            <span>Spawn interval scale (Slower to Faster)</span>
+                                            <span id="lbl-custom-speed">1.0x</span>
+                                        </div>
+                                        <input type="range" id="slider-custom-speed" min="0.5" max="2.5" value="1.0" step="0.1" style="width: 100%; accent-color: var(--accent);" oninput="updateCustomDifficultySliders()">
+                                    </div>
+                                    <div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                                            <span>Hit Leeway Window</span>
+                                            <span id="lbl-custom-leeway">450ms</span>
+                                        </div>
+                                        <input type="range" id="slider-custom-leeway" min="100" max="1000" value="450" step="50" style="width: 100%; accent-color: var(--accent);" oninput="updateCustomDifficultySliders()">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -266,6 +308,12 @@
                                     <i class="fa-solid fa-mouse"></i> Mouse Simulation
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- Randomize Position Toggle -->
+                        <div class="random-toggle-wrapper" style="display: flex; align-items: center; gap: 8px; margin: 0 16px;">
+                            <input type="checkbox" id="chk-random-positions" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;" onchange="toggleRandomPositions()">
+                            <label for="chk-random-positions" style="font-size: 0.9rem; cursor: pointer; color: var(--text-dim); user-select: none;">Randomize Notes</label>
                         </div>
 
                         <button id="start-gameplay-btn" class="btn btn-primary btn-large" onclick="startGame()">
@@ -421,6 +469,52 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Predictive Prognosis Card -->
+                    <div class="glass-card summary-analysis-card predictive-card" style="margin-top: 24px; border-left: 4px solid var(--accent);">
+                        <h3><i class="fa-solid fa-brain" style="color: var(--accent);"></i> Predictive Bilateral Prognosis (Next Session)</h3>
+                        <p style="color: var(--text-dim); font-size: 0.85rem; margin-top: 4px; margin-bottom: 16px;">
+                            Algorithm-based projection of your hand dominance and coordination patterns for the next session, based on historical session trends.
+                        </p>
+                        
+                        <div class="analysis-stats-row" style="margin-bottom: 20px;">
+                            <div class="single-stat">
+                                <span class="label">Predicted Usage Ratio</span>
+                                <span class="val" id="pred-usage-ratio" style="font-size: 1.1rem;">L: 50% / R: 50%</span>
+                            </div>
+                            <div class="single-stat">
+                                <span class="label">Predicted Dominance Gap</span>
+                                <span class="val highlight" id="pred-dominance-gap" style="color: var(--accent);">0%</span>
+                            </div>
+                            <div class="single-stat">
+                                <span class="label">Compensation Risk</span>
+                                <span class="val" id="pred-compensation-risk" style="color: var(--success); font-weight: 600;">Low Risk</span>
+                            </div>
+                            <div class="single-stat">
+                                <span class="label">Prediction Reliability</span>
+                                <span class="val" id="pred-reliability" style="font-size: 1.1rem; color: var(--text);">--</span>
+                            </div>
+                        </div>
+
+                        <div class="clinical-note-card" style="margin-top: 16px; background: rgba(122, 92, 255, 0.05); border: 1px solid rgba(122, 92, 255, 0.15); padding: 12px 16px; border-radius: 8px;">
+                            <h4 style="color: var(--accent); display: flex; align-items: center; gap: 8px; font-size: 0.95rem; margin-bottom: 6px;">
+                                <i class="fa-solid fa-user-doctor"></i> Intelligent Rehabilitation Suggestion
+                            </h4>
+                            <p id="pred-recommendation" style="font-size: 0.9rem; line-height: 1.4; color: var(--text); margin: 0;">
+                                Play more sessions to generate prognostic recommendations.
+                            </p>
+                        </div>
+
+                        <div class="clinical-note-card prediction-risk-side-box" style="margin-top: 12px; background: rgba(255, 77, 79, 0.05); border: 1px solid rgba(255, 77, 79, 0.15); padding: 12px 16px; border-radius: 8px;">
+                            <h4 style="color: var(--error); display: flex; align-items: center; gap: 8px; font-size: 0.95rem; margin-bottom: 6px;">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Upper Limb Deficit & Weakness Trend
+                            </h4>
+                            <div style="font-size: 0.9rem; line-height: 1.4; color: var(--text);">
+                                <div><strong>Trending Weak Side:</strong> <span id="pred-weak-side" style="font-weight: 600; color: var(--error);">--</span></div>
+                                <div style="margin-top: 4px;"><strong>At-Risk Movements:</strong> <span id="pred-risk-movements" style="color: var(--text-dim);">--</span></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="action-footer justify-center">
@@ -499,6 +593,26 @@
                                     <canvas id="trend-canvas" width="500" height="150"></canvas>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Machine Learning Prognosis Section -->
+                        <div class="clinical-note-card predictive-clinical-card" style="margin-top: 20px; margin-bottom: 20px; border-left: 4px solid var(--accent);">
+                            <h4 style="color: var(--accent); display: flex; align-items: center; gap: 8px; font-size: 0.95rem; margin-bottom: 8px;">
+                                <i class="fa-solid fa-chart-line"></i> Machine Learning Prognosis for Next Session
+                            </h4>
+                            <div class="prognosis-details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 12px; font-size: 0.9rem;">
+                                <div><strong>Predicted Gap:</strong> <span id="dash-pred-gap">--</span></div>
+                                <div><strong>Predicted Dominant:</strong> <span id="dash-pred-side">--</span></div>
+                                <div><strong>Prognosis Risk:</strong> <span id="dash-pred-risk">--</span></div>
+                                <div><strong>Reliability & Accuracy:</strong> <span id="dash-pred-accuracy">--</span></div>
+                            </div>
+                            <div style="margin-top: 10px; margin-bottom: 10px; font-size: 0.88rem; color: var(--text); border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 8px;">
+                                <div><strong>Trending Weak Limb:</strong> <span id="dash-weak-limb" style="color: var(--error); font-weight: 600;">--</span></div>
+                                <div style="margin-top: 4px;"><strong>At-Risk Movements:</strong> <span id="dash-risk-movements" style="color: var(--text-dim);">--</span></div>
+                            </div>
+                            <p id="dash-pred-recommendation" style="font-size: 0.88rem; line-height: 1.4; color: var(--text-dim); margin: 0;">
+                                Select a patient with session history to calculate prognostic metrics.
+                            </p>
                         </div>
 
                         <div class="history-table-section">

@@ -161,10 +161,17 @@ const BEATMAPS = [
 
 // Helper to scale beatmap note timestamps based on difficulty multipliers
 function getScaleMapNotes(beatmap, difficultyVal) {
-    // difficultyVal: 1 = Easy (slow), 2 = Medium (normal), 3 = Hard (fast)
+    // difficultyVal: 0 = Very Easy, 1 = Easy, 2 = Medium, 3 = Hard, 4 = Flexible
     let speedMultiplier = 1.0;
-    if (difficultyVal === 1) speedMultiplier = 1.4; // 40% slower timeline spacing
-    if (difficultyVal === 3) speedMultiplier = 0.75; // 25% faster timeline spacing
+    if (difficultyVal === 0) {
+        speedMultiplier = 1.8; // 80% slower timeline spacing
+    } else if (difficultyVal === 1) {
+        speedMultiplier = 1.4; // 40% slower timeline spacing
+    } else if (difficultyVal === 3) {
+        speedMultiplier = 0.75; // 25% faster timeline spacing
+    } else if (difficultyVal === 4) {
+        speedMultiplier = window.customSpeedMultiplier !== undefined ? window.customSpeedMultiplier : 1.0;
+    }
     
     return beatmap.notes.map(note => {
         const scaledNote = {

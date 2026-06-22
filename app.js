@@ -84,6 +84,7 @@ window.addEventListener("DOMContentLoaded", () => {
     updateHomeDashboard();
     updateHistoryTable();
     updateTherapistHub();
+    updateCustomDifficultySliders();
     
     console.log("App Initialized Successfully.");
 });
@@ -315,7 +316,7 @@ function handleGameFinished(metrics) {
 
     const patient = LOCAL_DB.patients.find(p => p.id === LOCAL_DB.activePatientId);
     const map = BEATMAPS.find(bm => bm.id === metrics.beatmapId);
-    const diffNames = { 1: "Easy", 2: "Medium", 3: "Hard" };
+    const diffNames = { 0: "Very Easy", 1: "Easy", 2: "Medium", 3: "Hard", 4: "Flexible" };
 
     const newSession = {
         id: "s_" + Date.now(),
@@ -373,8 +374,185 @@ function handleGameFinished(metrics) {
         document.getElementById("summary-gap-success-val").innerText = dominanceGap.toFixed(1) + "%";
     }
 
+    // Render predictions
+    const pSessions = LOCAL_DB.sessions.filter(s => s.patientId === patient.id);
+    const prediction = predictNextSessionMetrics(pSessions);
+    
+    if (prediction) {
+        document.getElementById("pred-usage-ratio").innerText = `L: ${prediction.predictedLeftRatio}% / R: ${prediction.predictedRightRatio}%`;
+        document.getElementById("pred-dominance-gap").innerText = `${prediction.predictedDominanceGap}%`;
+        
+        const riskEl = document.getElementById("pred-compensation-risk");
+        riskEl.innerText = `${prediction.riskLevel} Risk`;
+        if (prediction.riskLevel === "High") {
+            riskEl.style.color = "var(--error)";
+        } else if (prediction.riskLevel === "Moderate") {
+            riskEl.style.color = "var(--warning)";
+        } else {
+            riskEl.style.color = "var(--success)";
+        }
+
+        const reliabilityEl = document.getElementById("pred-reliability");
+        if (prediction.backtestAccuracy !== null) {
+            reliabilityEl.innerHTML = `${prediction.confidence}% <span style="font-size: 0.75rem; color: var(--text-dim);">(Acc: ${prediction.backtestAccuracy}%)</span>`;
+        } else {
+            reliabilityEl.innerHTML = `${prediction.confidence}% <span style="font-size: 0.75rem; color: var(--text-dim);">(No Backtest)</span>`;
+        }
+        
+        // Generate recommendation
+        const recEl = document.getElementById("pred-recommendation");
+        if (prediction.riskLevel === "High") {
+            recEl.innerText = `Recommendation: High compensation predicted. Suggesting focus on engaging the affected ${patient.affectedSide === 'none' ? prediction.predictedDominantSide === 'right' ? 'left' : 'right' : patient.affectedSide} hand. We recommend playing the next session on Easy difficulty, and prompting the patient to reach neutral notes with their weaker hand.`;
+        } else if (prediction.riskLevel === "Moderate") {
+            recEl.innerText = `Recommendation: Moderate asymmetry predicted. Continue symmetrical usage with focus on maintaining bilateral balance. We suggest playing Medium difficulty maps next session.`;
+        } else {
+            recEl.innerText = `Recommendation: Symmetrical recovery predicted to continue. Symmetrical coordination is excellent! Patient is ready for Medium or Hard difficulty maps next session to increase speed and coordination.`;
+        }
+
+        // Render weak side deficit analysis
+        const riskSideBox = document.querySelector(".prediction-risk-side-box");
+        const weakSideEl = document.getElementById("pred-weak-side");
+        weakSideEl.innerText = prediction.predictedWeakSide;
+        document.getElementById("pred-risk-movements").innerText = prediction.atRiskMovements;
+        
+        if (prediction.predictedWeakSide.startsWith("None")) {
+            riskSideBox.style.background = "rgba(82, 196, 26, 0.05)";
+            riskSideBox.style.borderColor = "rgba(82, 196, 26, 0.15)";
+            riskSideBox.querySelector("h4").style.color = "var(--success)";
+            riskSideBox.querySelector("h4").innerHTML = `<i class="fa-solid fa-circle-check"></i> Healthy Symmetrical Movement`;
+            weakSideEl.style.color = "var(--success)";
+        } else {
+            riskSideBox.style.background = "rgba(255, 77, 79, 0.05)";
+            riskSideBox.style.borderColor = "rgba(255, 77, 79, 0.15)";
+            riskSideBox.querySelector("h4").style.color = "var(--error)";
+            riskSideBox.querySelector("h4").innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Upper Limb Deficit & Weakness Trend`;
+            weakSideEl.style.color = "var(--error)";
+        }
+    }
+
     // Go to summary page tab
     showTab("summary");
+}
+
+// Predictive Model for hand dominance and compensation risk
+function predictNextSessionMetrics(sessions) {
+    if (!sessions || sessions.length === 0) {
+        return null;
+    }
+
+    const N = sessions.length;
+    
+    // Extrapolate helper using linear regression
+    function fitLinear(yValues) {
+        if (yValues.length < 2) return { slope: 0, intercept: yValues[0] || 0 };
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        const n = yValues.length;
+        for (let i = 0; i < n; i++) {
+            const x = i + 1;
+            const y = yValues[i];
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumXX += x * x;
+        }
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        return { slope, intercept };
+    }
+
+    // EWMA helper
+    function getEWMA(yValues, alpha = 0.6) {
+        let val = yValues[0] || 0;
+        for (let i = 1; i < yValues.length; i++) {
+            val = alpha * yValues[i] + (1 - alpha) * val;
+        }
+        return val;
+    }
+
+    // Extract time series
+    const totalHits = sessions.map(s => s.leftHits + s.rightHits);
+    const leftUsageRatios = sessions.map((s, idx) => totalHits[idx] > 0 ? (s.leftHits / totalHits[idx]) * 100 : 50);
+    const dominanceGaps = sessions.map(s => s.dominanceGap);
+    
+    // Predict next Left Usage Ratio
+    const lrLeft = fitLinear(leftUsageRatios);
+    const predLeftRatioLinear = lrLeft.slope * (N + 1) + lrLeft.intercept;
+    const predLeftRatioEWMA = getEWMA(leftUsageRatios, 0.6);
+    
+    const beta = N >= 2 ? 0.4 : 0.0; // No linear trend prediction if only 1 session
+    let predLeftRatio = beta * predLeftRatioLinear + (1 - beta) * predLeftRatioEWMA;
+    predLeftRatio = Math.max(0, Math.min(100, predLeftRatio));
+    
+    const predRightRatio = 100 - predLeftRatio;
+    const predDominanceGap = Math.abs(predRightRatio - predLeftRatio);
+    
+    // Predicted dominant side
+    const predDominantSide = predRightRatio > predLeftRatio ? "right" : predLeftRatio > predRightRatio ? "left" : "balanced";
+    
+    // Predicted compensation risk
+    let risk = "Low";
+    if (predDominanceGap > 30) {
+        risk = "High";
+    } else if (predDominanceGap > 15) {
+        risk = "Moderate";
+    }
+    
+    // Confidence Calculation
+    // Base confidence starts at 50% for 1 session, 70% for 2, 85% for 3, and 95% for 4+
+    let baseConfidence = 50;
+    if (N === 2) baseConfidence = 70;
+    else if (N === 3) baseConfidence = 85;
+    else if (N >= 4) baseConfidence = 95;
+    
+    // Variance penalty
+    let variancePenalty = 0;
+    if (N >= 2) {
+        const meanGap = dominanceGaps.reduce((a, b) => a + b, 0) / N;
+        const variance = dominanceGaps.reduce((a, b) => a + Math.pow(b - meanGap, 2), 0) / N;
+        const stdDev = Math.sqrt(variance);
+        // If stdDev is high, decrease confidence (up to 30% reduction)
+        variancePenalty = Math.min(30, stdDev * 1.5);
+    }
+    
+    const confidence = Math.max(40, Math.round(baseConfidence - variancePenalty));
+    
+    // Backtest Accuracy (for N >= 3)
+    let backtestAccuracy = null;
+    if (N >= 3) {
+        // Run prediction for session N using sessions 1..N-1
+        const historicalSessions = sessions.slice(0, N - 1);
+        const backtestPred = predictNextSessionMetrics(historicalSessions);
+        if (backtestPred) {
+            const actualGap = sessions[N - 1].dominanceGap;
+            const error = Math.abs(backtestPred.predictedDominanceGap - actualGap);
+            backtestAccuracy = Math.max(50, Math.round(100 - error));
+        }
+    }
+    
+    // Determine weak side and at-risk movements
+    let predictedWeakSide = "None (Balanced)";
+    let atRiskMovements = "None detected. Bilateral movement coordination remains healthy.";
+    if (predDominanceGap >= 10) {
+        if (predLeftRatio < predRightRatio) {
+            predictedWeakSide = "Left Upper Limb (Coral)";
+            atRiskMovements = "Left arm extension, shoulder abduction, and quick coordination response on the left visual field.";
+        } else {
+            predictedWeakSide = "Right Upper Limb (Cyan)";
+            atRiskMovements = "Right arm extension, shoulder abduction, and quick coordination response on the right visual field.";
+        }
+    }
+
+    return {
+        predictedLeftRatio: parseFloat(predLeftRatio.toFixed(1)),
+        predictedRightRatio: parseFloat(predRightRatio.toFixed(1)),
+        predictedDominanceGap: parseFloat(predDominanceGap.toFixed(1)),
+        predictedDominantSide: predDominantSide,
+        predictedWeakSide: predictedWeakSide,
+        atRiskMovements: atRiskMovements,
+        riskLevel: risk,
+        confidence: confidence,
+        backtestAccuracy: backtestAccuracy
+    };
 }
 
 function restartSession() {
@@ -594,6 +772,15 @@ function populatePatientDetailsCard() {
     if (pSessions.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 12px;">No sessions played.</td></tr>`;
         drawTrendChart([]);
+        
+        // Reset dashboard predictions
+        document.getElementById("dash-pred-gap").innerText = "--";
+        document.getElementById("dash-pred-side").innerText = "--";
+        document.getElementById("dash-pred-risk").innerText = "--";
+        document.getElementById("dash-pred-accuracy").innerText = "--";
+        document.getElementById("dash-weak-limb").innerText = "--";
+        document.getElementById("dash-risk-movements").innerText = "--";
+        document.getElementById("dash-pred-recommendation").innerText = "Select a patient with session history to calculate prognostic metrics.";
         return;
     }
 
@@ -613,6 +800,52 @@ function populatePatientDetailsCard() {
         `;
         tableBody.appendChild(row);
     });
+
+    // Render ML Prognosis on Therapist Dashboard
+    const dashPredGap = document.getElementById("dash-pred-gap");
+    const dashPredSide = document.getElementById("dash-pred-side");
+    const dashPredRisk = document.getElementById("dash-pred-risk");
+    const dashPredAccuracy = document.getElementById("dash-pred-accuracy");
+    const dashPredRec = document.getElementById("dash-pred-recommendation");
+
+    const prediction = predictNextSessionMetrics(pSessions);
+    if (prediction) {
+        dashPredGap.innerText = `${prediction.predictedDominanceGap}%`;
+        dashPredSide.innerText = prediction.predictedDominantSide.toUpperCase();
+        dashPredRisk.innerText = `${prediction.riskLevel} Risk`;
+        
+        if (prediction.riskLevel === "High") {
+            dashPredRisk.style.color = "var(--error)";
+        } else if (prediction.riskLevel === "Moderate") {
+            dashPredRisk.style.color = "var(--warning)";
+        } else {
+            dashPredRisk.style.color = "var(--success)";
+        }
+        
+        if (prediction.backtestAccuracy !== null) {
+            dashPredAccuracy.innerHTML = `${prediction.confidence}% <span style="font-size: 0.75rem; color: var(--text-dim);">(Acc: ${prediction.backtestAccuracy}%)</span>`;
+        } else {
+            dashPredAccuracy.innerHTML = `${prediction.confidence}% <span style="font-size: 0.75rem; color: var(--text-dim);">(No Backtest)</span>`;
+        }
+
+        // Render weak limb prognosis on Therapist Dashboard
+        const dashWeakLimb = document.getElementById("dash-weak-limb");
+        dashWeakLimb.innerText = prediction.predictedWeakSide;
+        if (prediction.predictedWeakSide.startsWith("None")) {
+            dashWeakLimb.style.color = "var(--success)";
+        } else {
+            dashWeakLimb.style.color = "var(--error)";
+        }
+        document.getElementById("dash-risk-movements").innerText = prediction.atRiskMovements;
+
+        if (prediction.riskLevel === "High") {
+            dashPredRec.innerText = `Prognosis suggests patient will favor the ${prediction.predictedDominantSide} side next session (Gap: ${prediction.predictedDominanceGap}%). Suggest therapist reduce beatmap speed and adjust bounds to encourage engagement of the weaker side.`;
+        } else if (prediction.riskLevel === "Moderate") {
+            dashPredRec.innerText = `Prognosis predicts moderate asymmetry (Gap: ${prediction.predictedDominanceGap}%). Symmetrical usage is stable. Continue normal therapy progression on Medium difficulty.`;
+        } else {
+            dashPredRec.innerText = `Prognosis indicates excellent bilateral symmetry (Gap: ${prediction.predictedDominanceGap}%). Recommendation: Advance patient to Hard difficulty levels to build reaction speed and coordination.`;
+        }
+    }
 
     // Draw the graphical progress trend
     drawTrendChart(pSessions.slice(-5));
@@ -855,4 +1088,39 @@ function drawFrameSkeletons(canvasElement, hands) {
             ctx.restore();
         }
     });
+}
+
+// Global configuration variables for custom difficulty and randomization
+window.customTotalNotes = 30;
+window.customSpeedMultiplier = 1.0;
+window.customHitLeeway = 450;
+window.randomizeNotePositions = false;
+
+function toggleCustomDifficultyPanel(show) {
+    const panel = document.getElementById("custom-difficulty-panel");
+    if (show) {
+        panel.classList.remove("hidden");
+    } else {
+        panel.classList.add("hidden");
+    }
+    playSynthSound(440, "sine", 0.05);
+}
+
+function updateCustomDifficultySliders() {
+    const notesVal = document.getElementById("slider-custom-notes").value;
+    const speedVal = document.getElementById("slider-custom-speed").value;
+    const leewayVal = document.getElementById("slider-custom-leeway").value;
+
+    document.getElementById("lbl-custom-notes").innerText = notesVal + " notes";
+    document.getElementById("lbl-custom-speed").innerText = speedVal + "x";
+    document.getElementById("lbl-custom-leeway").innerText = leewayVal + "ms";
+
+    window.customTotalNotes = parseInt(notesVal);
+    window.customSpeedMultiplier = parseFloat(speedVal);
+    window.customHitLeeway = parseInt(leewayVal);
+}
+
+function toggleRandomPositions() {
+    window.randomizeNotePositions = document.getElementById("chk-random-positions").checked;
+    playSynthSound(440, "sine", 0.05);
 }

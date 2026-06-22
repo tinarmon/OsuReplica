@@ -74,6 +74,33 @@ At the end of a session, a post-session summary compares usage ratios and reacti
 3.  Double-click **`index.html`** to open it directly in a web browser.
 4.  No installation or development servers are required!
 
+## 🌟 Lobby1 Updates (Bilateral Prognosis & Customization)
+
+The following features and clinical tools were introduced in the **Lobby1** development batch:
+
+### 1. 🧠 Predictive Bilateral Prognosis & Accuracy Model
+- **Forecasting Algorithm**: Combines Linear Regression Extrapolation and Exponentially Weighted Moving Average (EWMA) to predict next-session dominance gap and left/right usage ratio.
+- **Deficit & Weakness Analysis**: Detects which hand is trending weak and indicates specific movements (e.g. extension, shoulder abduction) that are at risk of avoidance or decay.
+- **Prediction Confidence Rating**: Dynamically grades prediction confidence based on consistency (standard deviation) and number of completed sessions.
+- **Backtesting Accuracy**: Measures historical model accuracy retrospectively by testing the forecasting algorithm against previous sessions.
+
+### 2. ⏱️ Pre-game Countdown Timer
+- Launches a large **3 ➔ 2 ➔ 1 ➔ GO!** countdown overlay before the gameplay starts.
+- Keeps cameras and skeletons active during the countdown so players can calibrate hand positions.
+- Pauses and resumes countdown tracking cleanly if the pause button is toggled.
+
+### 3. 🟢 Very Easy Difficulty
+- A slow-paced mode with huge note targets (70px), generous hit windows (600ms), and 1.8x slower time spacing.
+
+### 4. 🎛️ Flexible (Custom) Difficulty & Randomization
+- Adds adjustable sliders in the selection card to custom-configure:
+  - **Total Notes**: 10 to 100 notes (loops/offsets maps dynamically).
+  - **Spawn Interval Speed**: 0.5x to 2.5x.
+  - **Hit Leeway Window**: 100ms to 1000ms.
+- **Randomize Notes**: Option to stochastically shift target coordinates within safe boundaries for training variety.
+
+---
+
 ## 🌿 Branching Convention (`Lobby[Number]` & `main`)
 
 This project implements an incremental branch-tracking strategy:

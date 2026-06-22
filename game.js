@@ -31,10 +31,29 @@ const gameStats = {
 
 // Hit Windows in ms based on difficulty
 const HIT_WINDOWS = {
+    0: 600, // Very Easy: 600ms leeway
     1: 450, // Easy: 450ms leeway
     2: 300, // Medium: 300ms leeway
     3: 180  // Hard: 180ms leeway
 };
+
+function getHitLeeway(difficulty) {
+    if (difficulty === 0) return 600;
+    if (difficulty === 1) return 450;
+    if (difficulty === 2) return 300;
+    if (difficulty === 3) return 180;
+    if (difficulty === 4) return window.customHitLeeway !== undefined ? window.customHitLeeway : 450;
+    return 450;
+}
+
+function getHitRadius(difficulty) {
+    if (difficulty === 0) return 70; // Very Easy
+    if (difficulty === 1) return 55; // Easy
+    if (difficulty === 2) return 40; // Medium
+    if (difficulty === 3) return 30; // Hard
+    if (difficulty === 4) return 55; // Flexible Custom: use standard Easy size
+    return 55;
+}
 
 // Callback when song completes
 let onGameFinishedCallback = null;
@@ -53,17 +72,78 @@ function initGameEngine(canvasElement, onFinishedCallback) {
 }
 
 function startBeatmap(beatmap, difficulty) {
-    activeBeatmap = beatmap;
+    activeBeatmap = { ...beatmap }; // Clone to avoid modifying global beatmap properties
     activeDifficulty = parseInt(difficulty);
     
     // Scale notes times according to difficulty
-    const rawNotes = getScaleMapNotes(beatmap, activeDifficulty);
+    let rawNotes = getScaleMapNotes(activeBeatmap, activeDifficulty);
+    
+    // Adjust total notes if custom difficulty is chosen
+    if (activeDifficulty === 4 && window.customTotalNotes !== undefined) {
+        const targetCount = window.customTotalNotes;
+        const resultNotes = [];
+        const baseDurationMs = activeBeatmap.duration * 1000;
+        
+        for (let i = 0; i < targetCount; i++) {
+            const srcNote = rawNotes[i % rawNotes.length];
+            const loopIndex = Math.floor(i / rawNotes.length);
+            const timeOffset = loopIndex * (baseDurationMs + 1000); // 1s buffer between loops
+            
+            const newNote = {
+                ...srcNote,
+                time: srcNote.time + timeOffset
+            };
+            if (srcNote.type === "slider" && srcNote.path) {
+                newNote.path = srcNote.path.map(pt => ({ x: pt.x, y: pt.y }));
+            }
+            resultNotes.push(newNote);
+        }
+        rawNotes = resultNotes;
+        
+        // Dynamically adjust activeBeatmap duration based on last note's end
+        const lastNote = rawNotes[rawNotes.length - 1];
+        const lastNoteEndMs = lastNote.type === "slider" ? lastNote.time + lastNote.duration : lastNote.time;
+        activeBeatmap.duration = Math.ceil((lastNoteEndMs + 2000) / 1000);
+    }
+    
     totalNotesInChart = rawNotes.length;
     
     // Map to game structure
     gameNotes = rawNotes.map(n => {
+        let xVal = n.x;
+        let yVal = n.y;
+        let pathVal = n.path ? JSON.parse(JSON.stringify(n.path)) : null;
+
+        if (window.randomizeNotePositions) {
+            const dx = (Math.random() - 0.5) * 200; // offset between -100 and +100
+            const dy = (Math.random() - 0.5) * 120; // offset between -60 and +60
+            
+            let newX = xVal + dx;
+            let newY = yVal + dy;
+            
+            // Clamp coordinates to safe bounds (100 to 700 for x, 80 to 420 for y)
+            newX = Math.max(100, Math.min(700, newX));
+            newY = Math.max(80, Math.min(420, newY));
+            
+            const actualDx = newX - xVal;
+            const actualDy = newY - yVal;
+            
+            xVal = newX;
+            yVal = newY;
+            
+            if (pathVal) {
+                pathVal = pathVal.map(pt => ({
+                    x: Math.max(50, Math.min(750, pt.x + actualDx)),
+                    y: Math.max(50, Math.min(450, pt.y + actualDy))
+                }));
+            }
+        }
+
         const mapped = {
             ...n,
+            x: xVal,
+            y: yVal,
+            path: pathVal,
             hit: false,
             missed: false,
             handUsed: null,
@@ -78,7 +158,7 @@ function startBeatmap(beatmap, difficulty) {
             mapped.sliderProgress = 0; // 0 to 1
             mapped.lockedHand = null;
             mapped.holdingSucceeded = true;
-            mapped.currentPos = { x: n.x, y: n.y };
+            mapped.currentPos = { x: xVal, y: yVal };
             gameStats.slidersTotal++;
         }
         return mapped;
@@ -103,18 +183,83 @@ function startBeatmap(beatmap, difficulty) {
     gameStartTime = Date.now();
     currentSongTime = 0;
     
-    // Play song start beep
-    playSynthSound(580, "triangle", 0.2);
-    setTimeout(() => playSynthSound(880, "triangle", 0.4), 250);
+    // Countdown variables initialization
+    window.countdownActive = true;
+    window.countdownTimeLeft = 3;
+
+    // Play initial countdown beep
+    playSynthSound(440, "triangle", 0.15);
+
+    if (window.cdInterval) clearInterval(window.cdInterval);
+    window.cdInterval = setInterval(() => {
+        window.countdownTimeLeft--;
+        if (window.countdownTimeLeft === 0) {
+            playSynthSound(880, "triangle", 0.3); // GO! beep
+        } else if (window.countdownTimeLeft > 0) {
+            playSynthSound(440, "triangle", 0.15); // beep
+        } else {
+            // Countdown finished!
+            clearInterval(window.cdInterval);
+            window.countdownActive = false;
+            // Record true game start time
+            gameStartTime = Date.now();
+            pauseOffset = 0;
+        }
+    }, 1000);
 
     if (gameLoopId) cancelAnimationFrame(gameLoopId);
     gameLoopId = requestAnimationFrame(gameStep);
     
-    console.log("Game started: ", beatmap.title);
+    console.log("Game started (with countdown): ", beatmap.title);
 }
 
 function gameStep() {
     if (gamePaused) return;
+
+    if (window.countdownActive) {
+        // Clear screen, draw background grid, cursors, and countdown overlay
+        gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+        
+        // Background Grid
+        gameCtx.save();
+        gameCtx.fillStyle = "#050811";
+        gameCtx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+        gameCtx.strokeStyle = "rgba(122, 92, 255, 0.03)";
+        gameCtx.lineWidth = 1;
+        const gridSize = 40;
+        for (let x = 0; x < gameCanvas.width; x += gridSize) {
+            gameCtx.beginPath();
+            gameCtx.moveTo(x, 0);
+            gameCtx.lineTo(x, gameCanvas.height);
+            gameCtx.stroke();
+        }
+        for (let y = 0; y < gameCanvas.height; y += gridSize) {
+            gameCtx.beginPath();
+            gameCtx.moveTo(0, y);
+            gameCtx.lineTo(gameCanvas.width, y);
+            gameCtx.stroke();
+        }
+        gameCtx.restore();
+        
+        drawPlayerCursors();
+        
+        // Draw countdown overlay
+        gameCtx.save();
+        gameCtx.fillStyle = "rgba(11, 18, 32, 0.65)";
+        gameCtx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+        
+        gameCtx.font = "bold 90px 'Space Grotesk'";
+        gameCtx.fillStyle = window.countdownTimeLeft <= 0 ? "var(--success)" : "var(--accent)";
+        gameCtx.shadowBlur = 20;
+        gameCtx.shadowColor = window.countdownTimeLeft <= 0 ? "rgba(82, 196, 26, 0.4)" : "var(--accent-glow)";
+        gameCtx.textAlign = "center";
+        gameCtx.textBaseline = "middle";
+        gameCtx.fillText(window.countdownTimeLeft <= 0 ? "GO!" : window.countdownTimeLeft, gameCanvas.width / 2, gameCanvas.height / 2);
+        gameCtx.restore();
+        
+        gameLoopId = requestAnimationFrame(gameStep);
+        return;
+    }
 
     currentSongTime = Date.now() - gameStartTime - pauseOffset;
     
@@ -133,8 +278,8 @@ function gameStep() {
 }
 
 function updateGameLogic() {
-    const hitLeeway = HIT_WINDOWS[activeDifficulty];
-    const hitRadius = activeDifficulty === 1 ? 55 : activeDifficulty === 2 ? 40 : 30;
+    const hitLeeway = getHitLeeway(activeDifficulty);
+    const hitRadius = getHitRadius(activeDifficulty);
 
     gameNotes.forEach(note => {
         // 1. Mark missed notes
@@ -309,7 +454,7 @@ function drawGameScreen() {
     }
     gameCtx.restore();
 
-    const hitRadius = activeDifficulty === 1 ? 55 : activeDifficulty === 2 ? 40 : 30;
+    const hitRadius = getHitRadius(activeDifficulty);
 
     // Draw game notes
     gameNotes.forEach(note => {
@@ -489,10 +634,33 @@ function pauseGame() {
         gamePaused = true;
         this.pauseTime = Date.now();
         document.querySelector(".btn-hud-pause").innerHTML = `<i class="fa-solid fa-play"></i> Resume`;
+        
+        // Pause countdown if active
+        if (window.countdownActive && window.cdInterval) {
+            clearInterval(window.cdInterval);
+        }
     } else {
         gamePaused = false;
         pauseOffset += Date.now() - this.pauseTime;
         document.querySelector(".btn-hud-pause").innerHTML = `<i class="fa-solid fa-pause"></i> Pause`;
+        
+        // Resume countdown if active
+        if (window.countdownActive) {
+            window.cdInterval = setInterval(() => {
+                window.countdownTimeLeft--;
+                if (window.countdownTimeLeft === 0) {
+                    playSynthSound(880, "triangle", 0.3); // GO! beep
+                } else if (window.countdownTimeLeft > 0) {
+                    playSynthSound(440, "triangle", 0.15); // beep
+                } else {
+                    clearInterval(window.cdInterval);
+                    window.countdownActive = false;
+                    gameStartTime = Date.now();
+                    pauseOffset = 0;
+                }
+            }, 1000);
+        }
+        
         gameLoopId = requestAnimationFrame(gameStep);
     }
 }
