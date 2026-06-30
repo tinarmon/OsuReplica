@@ -69,10 +69,12 @@ At the end of a session, a post-session summary compares usage ratios and reacti
 
 ## 🚀 How to Run Locally
 
-1.  Clone this repository locally.
-2.  Navigate to the `Container` directory.
-3.  Double-click **`index.html`** to open it directly in a web browser.
-4.  No installation or development servers are required!
+1. Clone this repository locally.
+2. For the best user experience (so the browser remembers your camera permissions), run a local web server:
+   * **Python:** Run `python -m http.server 8000` in the project root and navigate to `http://localhost:8000`.
+   * **Node.js/npm:** Run `npx serve` and navigate to the provided localhost URL.
+   * **VS Code:** Install the **Live Server** extension, right-click `index.html`, and select "Open with Live Server".
+3. *Fallback/Offline:* You can double-click **`index.html`** to open it directly in a web browser, but note that the browser will prompt for camera permission every time the camera restarts due to security policies for `file://` URLs.
 
 ## 🌟 Lobby1 Updates (Bilateral Prognosis & Customization)
 
@@ -98,6 +100,11 @@ The following features and clinical tools were introduced in the **Lobby1** deve
   - **Spawn Interval Speed**: 0.5x to 2.5x.
   - **Hit Leeway Window**: 100ms to 1000ms.
 - **Randomize Notes**: Option to stochastically shift target coordinates within safe boundaries for training variety.
+
+### 5. 📷 Persistent Camera Stream & Redundant Prompts Fix
+- **Webcam Stream Reuse**: Keeps the camera stream active when switching from calibration to gameplay to prevent repeated permission prompts.
+- **Redundant getUserMedia Removal**: Replaced MediaPipe's default `Camera` setup with a custom `requestAnimationFrame` frame loop. This avoids the double camera requests triggered by creating duplicate camera contexts.
+- **Graceful Shutdown**: Properly terminates stream tracks and turns off the camera light when navigating back to the Home/Dashboard or upon session completion.
 
 ---
 

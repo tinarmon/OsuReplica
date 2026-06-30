@@ -5,6 +5,8 @@ let handTrackerRunning = false;
 let inputMode = "mediapipe"; // 'mediapipe' | 'mouse'
 let activeCamera = null;
 let mpHands = null;
+let webcamStream = null;
+let animationFrameId = null;
 
 // Tracked hands states
 const trackedHands = {
@@ -190,30 +192,52 @@ function processMediaPipeResults(results) {
 
 // Start Web Camera feed
 async function startWebcam(videoElement) {
-    if (activeCamera) {
-        await activeCamera.stop();
+    // Stop any existing animation frame loop
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
     }
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 640, height: 480, frameRate: { ideal: 30 } }
-        });
-        videoElement.srcObject = stream;
+        // Only request user media if we don't already have an active stream
+        if (!webcamStream || !webcamStream.active || webcamStream.getVideoTracks().length === 0 || webcamStream.getVideoTracks()[0].readyState === 'ended') {
+            console.log("Requesting new webcam stream...");
+            webcamStream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480, frameRate: { ideal: 30 } }
+            });
+        } else {
+            console.log("Reusing existing webcam stream.");
+        }
+
+        // Assign the stream to the new video element
+        videoElement.srcObject = webcamStream;
+        
+        // Ensure video plays
+        await videoElement.play().catch(e => console.warn("Video play interrupted/delayed:", e));
+        
         updateChecklist("chk-webcam", true);
-        console.log("Webcam access granted.");
+        handTrackerRunning = true;
 
         if (inputMode === "mediapipe" && mpHands) {
-            activeCamera = new Camera(videoElement, {
-                onFrame: async () => {
-                    if (handTrackerRunning && inputMode === "mediapipe") {
+            const processFrame = async () => {
+                if (!handTrackerRunning || inputMode !== "mediapipe") {
+                    return;
+                }
+                
+                // Ensure the video element has valid data before sending it to MediaPipe
+                if (videoElement.readyState >= 2) { // HAVE_CURRENT_DATA or higher
+                    try {
                         await mpHands.send({ image: videoElement });
+                    } catch (e) {
+                        console.error("Error sending frame to MediaPipe:", e);
                     }
-                },
-                width: 640,
-                height: 480
-            });
-            await activeCamera.start();
-            handTrackerRunning = true;
+                }
+                
+                if (handTrackerRunning && inputMode === "mediapipe") {
+                    animationFrameId = requestAnimationFrame(processFrame);
+                }
+            };
+            animationFrameId = requestAnimationFrame(processFrame);
         }
     } catch (err) {
         console.error("Error accessing webcam:", err);
@@ -223,13 +247,24 @@ async function startWebcam(videoElement) {
 }
 
 // Stop Web Camera feed
-async function stopWebcam() {
+async function stopWebcam(forceClose = false) {
     handTrackerRunning = false;
-    if (activeCamera) {
-        await activeCamera.stop();
-        activeCamera = null;
+    
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
     }
-    console.log("Webcam stopped.");
+    
+    // If forceClose is true, or if we want to release the camera completely
+    if (forceClose && webcamStream) {
+        webcamStream.getTracks().forEach(track => {
+            track.stop();
+            console.log("Camera track stopped:", track.label);
+        });
+        webcamStream = null;
+    }
+    
+    console.log(`Webcam frame processing stopped (forceClose: ${forceClose}).`);
 }
 
 // Keyboard input listeners for mouse simulation:

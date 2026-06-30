@@ -148,10 +148,10 @@ function selectBeatmapElement(element, beatmapId) {
 function showTab(tabName) {
     // Stop active running webcam feeds if moving out of calibration/game
     if (activeTab === "calibration" && tabName !== "calibration") {
-        stopWebcam();
+        stopWebcam(tabName !== "gameplay");
     }
     if (activeTab === "gameplay" && tabName !== "gameplay") {
-        stopWebcam();
+        stopWebcam(tabName !== "calibration");
         if (gameLoopId) {
             cancelAnimationFrame(gameLoopId);
             gameLoopId = null;
@@ -254,7 +254,7 @@ async function toggleCamera(forceStart) {
         await startWebcam(video);
         if (btn) btn.innerHTML = `<i class="fa-solid fa-video-slash"></i> Stop Webcam`;
     } else {
-        await stopWebcam();
+        await stopWebcam(true);
         if (btn) btn.innerHTML = `<i class="fa-solid fa-video"></i> Start Webcam`;
         updateChecklist("chk-webcam", false);
         updateChecklist("chk-left-hand", false);
@@ -296,7 +296,7 @@ async function startGame() {
 // Process game finished metrics
 function handleGameFinished(metrics) {
     console.log("Session Finished metrics:", metrics);
-    stopWebcam();
+    stopWebcam(true);
     
     // Analyze session clinical results
     const L = metrics.leftHits;
